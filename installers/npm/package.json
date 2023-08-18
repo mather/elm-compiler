@@ -37,6 +37,7 @@
   ],
   "bin": { "elm": "bin/elm" },
   "dependencies": {
-    "request": "^2.88.0"
+    "follow-redirects": "^1.15.2",
+    "proxy-from-env": "^1.1.0"
   }
 }

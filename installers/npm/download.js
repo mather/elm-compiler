@@ -1,9 +1,10 @@
 var fs = require('fs');
-var package = require('./package.json');
 var path = require('path');
-var request = require('request');
+var { urlToHttpOptions } = require("url");
 var zlib = require('zlib');
-
+var { https } = require('follow-redirects');
+var { getProxyForUrl } = require('proxy-from-env');
+var package = require('./package.json');
 
 
 // MAIN
@@ -52,10 +53,38 @@ module.exports = function(callback)
 		exitFailure(url, 'I had some trouble writing file to disk. It is saying:\n\n' + error);
 	});
 
+	// handle *_proxy
+	var options = getHttpOptions(url);
+
 	// put it all together
-	request(url).on('error', reportDownloadFailure).pipe(gunzip).pipe(write);
+	https.get(options, (res) => {
+		if (res.statusCode >= 400) {
+			reportDownloadFailure(res.statusMessage);
+		} 
+		res.pipe(gunzip).pipe(write);
+	}).on('error', reportDownloadFailure);
 }
 
+
+// HANDLE *_PROXY
+
+function getHttpOptions(url) {
+	var parsed_url = new URL(url);
+	var proxy_url = getProxyForUrl(url);
+	if (!proxy_url) {
+		return urlToHttpOptions(parsed_url);
+	}
+
+	var parsed_proxy_url = new URL(proxy_url);
+
+	var options = urlToHttpOptions(parsed_proxy_url);
+	options.path = parsed_url.href;
+	options.headers = {
+		Host: parsed_url.host,
+	};
+
+	return options;
+}
 
 
 // VERIFY PLATFORM
